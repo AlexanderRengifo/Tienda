@@ -36,7 +36,6 @@ void Principal::on_CMDAgregar_released()
     int index = ui->inProducto->currentIndex();
     Producto *p=m_productos.at(index);
     int cantidad = ui->inCantidad->value();
-    cantidad++;
     //validar que no se agregue productos con 0 cabtidad
     if(cantidad==0){
         return;
@@ -71,7 +70,7 @@ void Principal::calcular(float stProducto)
 {
     m_subtotal += stProducto;
     float iva= (m_subtotal *IVA) /100;
-    float total = m_subtotal+IVA;
+    float total = m_subtotal+(m_subtotal*iva/100);
     ui->outSubtotal->setText(QString::number(m_subtotal,'f',2));
     ui->outIvan->setText(QString::number(iva,'f',2));
     ui->outTotal->setText(QString::number(total,'f',2));
@@ -86,72 +85,70 @@ bool Principal::verificarCedula()
         return false;
     }else if(cedula.isNull()==true){
         return  false;
-
-    }
-    //primeros 2 digitos de provincia
-    QString provincia= cedula.left(2);
-    if(provincia.toInt()>24||provincia.toInt()<1){
-        qDebug()<<provincia;
-    }
-    //tercer digito menor a 6
-    QChar digto3 =cedula[3];
-    if(digto3>6||digto3<0){
-        qDebug()<<digto3;
-    }
-
-
-    //verificar el 10 digito
-
-    int sumador=0;
-    int coeficiente1=1;
-    int coeficiente2=2;
-
-    //multiplicar cada digito de la cedula por los coeficiente 1 y 2
-    for(int i=0;i<cedula.size()-1;i++){
-        //obtnemos los digitos de la sedula
-        QString dig= cedula.at(i);
-        //transformamos a enteros los digitos
-        int p = dig.toInt();
-        //una condicion para alternar la multiplicacion entre 1 y 2
-        if(i%2==0){
-            //en caso de que la operacion sea mayor a 10 restamos 9
-            if(p*coeficiente2>10){
-                //sumamos los digitos - 9 en caso de que sea mayor
-                sumador+=p*coeficiente2-9;
-            }else{
-                //caso contrario se opera normal mente
-                sumador+= p*coeficiente2;
-            }
-        }else {
-            if(p*coeficiente1>10){
-                sumador+=p*coeficiente1-9;
-            }else{
-                sumador+= p*coeficiente1;
-            }
-
+    }else{
+        //primeros 2 digitos de provincia
+        QString provincia= cedula.left(2);
+        if(provincia.toInt()>24||provincia.toInt()<1){
+            qDebug()<<provincia;
         }
-    }
-    //restar sumador menos decena superior
-     //sumamos 10 para obtener una decena
-    int resultado =sumador+10;
-    //transformamos a QString para modifcar las unidades
-     QString newSumador = QString::number(resultado);
-     //modificamos la unidad a 0
-     newSumador.replace(newSumador.at(1),'0');
-     //transformamos a entero
-     int decenaSup = newSumador.toInt();
-     //tomamos el decimo digito
-    QString digito10= cedula.at(9);
-    //los transformamos a entero
-    int dig10= digito10.toInt();
-    int resta=decenaSup-sumador;
-    //si son iguales
-    if (resta==dig10){
-        return true;
-    }else if(resta==10 && dig10==0){
-        return true;
-    }else {
-        return false;
+        //tercer digito menor a 6
+        QChar digto3 =cedula[3];
+        if(digto3>6||digto3<0){
+            qDebug()<<digto3;
+        }
+        //verificar el 10 digito
+
+        int sumador=0;
+        int coeficiente1=1;
+        int coeficiente2=2;
+
+        //multiplicar cada digito de la cedula por los coeficiente 1 y 2
+        for(int i=0;i<cedula.size()-1;i++){
+            //obtnemos los digitos de la sedula
+            QString dig= cedula.at(i);
+            //transformamos a enteros los digitos
+            int p = dig.toInt();
+            //una condicion para alternar la multiplicacion entre 1 y 2
+            if(i%2==0){
+                //en caso de que la operacion sea mayor a 10 restamos 9
+                if(p*coeficiente2>10){
+                    //sumamos los digitos - 9 en caso de que sea mayor
+                    sumador+=p*coeficiente2-9;
+                }else{
+                    //caso contrario se opera normal mente
+                    sumador+= p*coeficiente2;
+                }
+            }else {
+                if(p*coeficiente1>10){
+                    sumador+=p*coeficiente1-9;
+                }else{
+                    sumador+= p*coeficiente1;
+                }
+
+            }
+        }
+        //restar sumador menos decena superior
+        //sumamos 10 para obtener una decena
+        int resultado =sumador+10;
+        //transformamos a QString para modifcar las unidades
+        QString newSumador = QString::number(resultado);
+        //modificamos la unidad a 0
+        newSumador.replace(newSumador.at(1),'0');
+        //transformamos a entero
+        int decenaSup = newSumador.toInt();
+        //tomamos el decimo digito
+        QString digito10= cedula.at(9);
+        //los transformamos a entero
+        int dig10= digito10.toInt();
+        int resta=decenaSup-sumador;
+        //si son iguales
+        if (resta==dig10){
+            return true;
+        }else if(resta==10 && dig10==0){
+            return true;
+        }else {
+            return false;
+        }
     }
     return 0;
 }
@@ -176,11 +173,12 @@ void Principal::limpiar()
 
 void Principal::on_cmdVenta_clicked()
 {
- qDebug()<<"1";
-   if(verificarCedula()==false && ui->inNombre->text().isNull()==true){
-      QMessageBox::critical(this,"Tienda","Cedula erronea ingresala nuevamente");
+    QString nombre=ui->inNombre->text();
+    if(verificarCedula()==false || nombre.isNull()==true){
+        QMessageBox::critical(this,"Tienda","Cedula o Cedula erronea ingresala nuevamente");
     }else {
-    QMessageBox::information(this,"tienda","Venta Exitosa\n pagar:"+QString::number(m_subtotal+IVA,'f',2));
+        QMessageBox::information(this,"tienda","Venta Exitosa\n pagar:"+QString::number(m_subtotal*1.12,'f',2));
+        limpiar();
     }
 
 }
